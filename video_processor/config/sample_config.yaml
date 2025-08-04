@@ -1,0 +1,11 @@
+# Sample YAML configuration for video processing
+# This file demonstrates YAML configuration support
+
+sequence_size: 64
+output_format: ".mp4"
+scaling_dim: "1280x720"
+frame_rate: 24
+compression: "high"
+remove_audio: true
+use_gpu: false
+color_output: true

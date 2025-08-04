@@ -1,0 +1,10 @@
+{
+    "sequence_size": 32,
+    "output_format": ".mp4",
+    "scaling_dim": null,
+    "frame_rate": null,
+    "compression": "medium",
+    "remove_audio": true,
+    "use_gpu": false,
+    "color_output": false
+}
