@@ -19,7 +19,7 @@ from utils.file_utils import (
     save_progress, get_video_files, ensure_output_folder
 )
 from utils.video_utils import process_video, get_video_info
-from utils.progress_utils import ProgressTracker, display_processing_summary
+from utils.progress_utils import ProgressTracker, VideoProgressDisplay, display_processing_summary
 
 # Constants
 DEFAULT_SEQUENCE_SIZE = 32
@@ -218,16 +218,13 @@ def main():
             progress_tracker.print_info(f"Scaling: {settings['scaling_dim']}")
         
         # Process videos
-        total_sequences = 0
-        processed_videos = 0
         skipped_videos = 0
         
-        video_progress = progress_tracker.create_video_progress_bar(
-            len(video_files), 
-            "Processing videos"
-        )
+        # Create custom progress display
+        video_display = VideoProgressDisplay(len(video_files), settings.get("color_output", False))
+        video_display.initialize_display()
         
-        for video_path in video_files:
+        for video_index, video_path in enumerate(video_files, 1):
             video_name = os.path.basename(video_path)
             
             try:
@@ -240,33 +237,34 @@ def main():
                     
                     if last_seq >= expected_sequences and expected_sequences > 0:
                         skipped_videos += 1
-                        video_progress.set_description(f"Skipping {video_name}")
-                        video_progress.update(1)
+                        video_display.update_video_skipped()
                         continue
                 
-                video_progress.set_description(f"Processing {video_name}")
+                # Get video total frames for progress tracking
+                from utils.video_utils import get_video_info
+                video_info_dict = get_video_info(video_path)
+                total_frames = video_info_dict.get("total_frames", 0)
+                
+                video_display.update_video_start(video_index, video_name, total_frames)
                 
                 sequences_created = process_video(
                     video_path,
                     settings["output_folder"],
                     settings,
                     report,
-                    progress_tracker
+                    video_display
                 )
                 
-                if sequences_created > 0:
-                    total_sequences += sequences_created
-                    processed_videos += 1
+                video_display.update_video_completed()
                 
             except Exception as e:
                 progress_tracker.print_error(f"Error processing '{video_name}': {e}")
-            
-            video_progress.update(1)
+                video_display.update_video_completed()
         
-        video_progress.close()
+        video_display.finalize_display()
         
         # Display final summary
-        display_processing_summary(processed_videos, total_sequences, skipped_videos)
+        display_processing_summary(video_display.processed_videos, video_display.total_sequences, skipped_videos)
         
         # Final save of progress report
         save_progress(report, settings["output_folder"])

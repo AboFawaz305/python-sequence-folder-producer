@@ -102,10 +102,11 @@ def save_sequence(frames, output_folder, video_name, sequence_num, settings):
         writer.release()
 
 
-def process_video(video_path, output_folder, settings, report, progress_tracker):
+def process_video(video_path, output_folder, settings, report, video_display):
     """
     Processes a single video into sequences.
     Updates the processing report after processing each sequence.
+    Uses video_display for progress tracking.
     """
     video_name = os.path.basename(video_path)
     sequence_size = settings.get("sequence_size", 32)
@@ -114,7 +115,6 @@ def process_video(video_path, output_folder, settings, report, progress_tracker)
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():
-        progress_tracker.print_error(f"Failed to open video '{video_path}'")
         return 0
     
     try:
@@ -128,17 +128,12 @@ def process_video(video_path, output_folder, settings, report, progress_tracker)
         # Check if video is already fully processed
         expected_sequences = total_frames // sequence_size
         if last_sequence >= expected_sequences:
-            progress_tracker.print_info(f"Video '{video_name}' already fully processed. Skipping.")
             return 0
         
         # Set starting position
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         current_frame = start_frame
         sequences_produced = last_sequence
-        
-        progress_tracker.print_info(f"Processing '{video_name}' - Total frames: {total_frames}, FPS: {fps:.2f}")
-        if start_frame > 0:
-            progress_tracker.print_info(f"Resuming from frame {start_frame} (sequence {last_sequence})")
         
         # Process sequences
         new_sequences = 0
@@ -164,6 +159,10 @@ def process_video(video_path, output_folder, settings, report, progress_tracker)
                     new_sequences += 1
                     current_frame += sequence_size
                     
+                    # Update progress display
+                    video_display.update_video_progress(current_frame)
+                    video_display.update_sequence_created()
+                    
                     # Update progress report
                     if video_name not in report["videos"]:
                         report["videos"][video_name] = {}
@@ -178,16 +177,12 @@ def process_video(video_path, output_folder, settings, report, progress_tracker)
                     if sequences_produced % 10 == 0:  # Save every 10 sequences
                         save_progress(report, output_folder)
                 else:
-                    progress_tracker.print_error(f"Failed to save sequence {sequences_produced} for '{video_name}'")
                     break
             else:
                 break
         
         # Final progress save
         save_progress(report, output_folder)
-        
-        if new_sequences > 0:
-            progress_tracker.print_success(f"Created {new_sequences} new sequences from '{video_name}'")
         
         return new_sequences
         
